@@ -1,0 +1,338 @@
+{
+  "entities": {
+    "CreatorProfile": {
+      "title": "CreatorProfile",
+      "description": "Public safe creator profile without PII.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "username", "displayName", "bio", "avatarUrl", "createdAt"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Private user account record including email and RBAC role.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"]
+        },
+        "isBanned": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "username", "email", "displayName", "bio", "avatarUrl", "role", "isBanned", "createdAt"]
+    },
+    "AdminGrant": {
+      "title": "AdminGrant",
+      "description": "Trusted administrator grant document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160
+        },
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "grantedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Minecraft Bedrock mod category.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[a-z0-9\\-]+$"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "slug", "description", "sortOrder", "createdAt"]
+    },
+    "MinecraftVersion": {
+      "title": "MinecraftVersion",
+      "description": "Supported Minecraft Bedrock Edition version managed by admins.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^1\\.[0-9]{1,3}(\\.[0-9]{1,3}){0,2}$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["version", "label", "sortOrder", "isActive", "createdAt"]
+    },
+    "Mod": {
+      "title": "Mod",
+      "description": "Minecraft Bedrock Edition mod release.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 90,
+          "pattern": "^[a-z0-9\\-]+$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 15,
+          "maxLength": 5000
+        },
+        "imageUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "imageFilename": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "fileUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "fileStorageName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "fileOriginalName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "fileSize": {
+          "type": "integer"
+        },
+        "fileFormat": {
+          "type": "string",
+          "enum": [".mcaddon", ".mcpack", ".mcworld", ".zip"]
+        },
+        "categoryId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "categoryName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "categorySlug": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[a-z0-9\\-]+$"
+        },
+        "mcVersion": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^1\\.[0-9]{1,3}(\\.[0-9]{1,3}){0,2}$"
+        },
+        "compatibleVersions": {
+          "type": "array",
+          "description": "Creator-verified compatible Minecraft Bedrock versions."
+        },
+        "creatorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "creatorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "creatorUsername": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "isFeatured": {
+          "type": "boolean"
+        },
+        "downloadCount": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "name",
+        "slug",
+        "description",
+        "imageUrl",
+        "imageFilename",
+        "fileUrl",
+        "fileStorageName",
+        "fileOriginalName",
+        "fileSize",
+        "fileFormat",
+        "categoryId",
+        "categoryName",
+        "categorySlug",
+        "mcVersion",
+        "creatorName",
+        "creatorId",
+        "creatorUsername",
+        "status",
+        "isFeatured",
+        "downloadCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/creators/{userId}": {
+      "schema": { "$ref": "#/entities/CreatorProfile" },
+      "description": "Public safe creator profiles without email or PII."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Private user account records with email, role, and ban status."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminGrant" },
+      "description": "Trusted administrator UID grants."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Minecraft Bedrock mod categories."
+    },
+    "/versions/{versionId}": {
+      "schema": { "$ref": "#/entities/MinecraftVersion" },
+      "description": "Supported Minecraft Bedrock Edition versions (1.26+ and admin-added releases)."
+    },
+    "/mods/{modId}": {
+      "schema": { "$ref": "#/entities/Mod" },
+      "description": "Minecraft Bedrock mods with permanent storage file URLs, version compatibility, and metadata."
+    }
+  }
+}

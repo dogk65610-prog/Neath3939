@@ -1,0 +1,8 @@
+{
+  "name": "Remix DOG MODS",
+  "description": "Minecraft Bedrock Edition mod-sharing portal for addons, texture packs, worlds, and shaders.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

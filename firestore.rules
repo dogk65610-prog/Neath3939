@@ -1,0 +1,337 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrapAdminEmail() {
+      return isVerifiedUser() && request.auth.token.email == 'ngpenh@gmail.com';
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        isBootstrapAdminEmail() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isNotBanned() {
+      return !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned == false;
+    }
+
+    function isValidBedrockVersionStr(v) {
+      return v is string && v.size() >= 3 && v.size() <= 20 && v.matches('^1\\.[0-9]{1,3}(\\.[0-9]{1,3}){0,2}$');
+    }
+
+    // --- Validation Blueprints ---
+    function isValidCreatorProfile(data) {
+      return data.keys().hasAll(['uid', 'username', 'displayName', 'bio', 'avatarUrl', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'username', 'displayName', 'bio', 'avatarUrl', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.username is string && data.username.size() >= 3 && data.username.size() <= 32 && data.username.matches('^[a-z0-9_]+$') &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+        data.bio is string && data.bio.size() <= 500 &&
+        data.avatarUrl is string && data.avatarUrl.size() <= 500 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidUserAccount(data) {
+      return data.keys().hasAll(['uid', 'username', 'email', 'displayName', 'bio', 'avatarUrl', 'role', 'isBanned', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'username', 'email', 'displayName', 'bio', 'avatarUrl', 'role', 'isBanned', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.username is string && data.username.size() >= 3 && data.username.size() <= 32 && data.username.matches('^[a-z0-9_]+$') &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+        data.bio is string && data.bio.size() <= 500 &&
+        data.avatarUrl is string && data.avatarUrl.size() <= 500 &&
+        data.role in ['user', 'admin'] &&
+        data.isBanned is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidAdminGrant(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'grantedAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.grantedAt is timestamp;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'slug', 'description', 'sortOrder', 'createdAt']) &&
+        data.keys().hasOnly(['name', 'slug', 'description', 'sortOrder', 'createdAt']) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 40 &&
+        data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 60 && data.slug.matches('^[a-z0-9\\-]+$') &&
+        data.description is string && data.description.size() <= 300 &&
+        data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidMinecraftVersion(data) {
+      return data.keys().hasAll(['version', 'label', 'sortOrder', 'isActive', 'createdAt']) &&
+        data.keys().hasOnly(['version', 'label', 'sortOrder', 'isActive', 'createdAt']) &&
+        isValidBedrockVersionStr(data.version) &&
+        data.label is string && data.label.size() >= 3 && data.label.size() <= 32 &&
+        data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000000000 &&
+        data.isActive is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidMod(data) {
+      return data.keys().hasAll([
+          'name', 'slug', 'description', 'imageUrl', 'imageFilename',
+          'fileUrl', 'fileStorageName', 'fileOriginalName', 'fileSize', 'fileFormat',
+          'categoryId', 'categoryName', 'categorySlug', 'mcVersion',
+          'creatorName', 'creatorId', 'creatorUsername',
+          'status', 'isFeatured', 'downloadCount', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'name', 'slug', 'description', 'imageUrl', 'imageFilename',
+          'fileUrl', 'fileStorageName', 'fileOriginalName', 'fileSize', 'fileFormat',
+          'categoryId', 'categoryName', 'categorySlug', 'mcVersion', 'compatibleVersions',
+          'creatorName', 'creatorId', 'creatorUsername',
+          'status', 'isFeatured', 'downloadCount', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string && data.name.size() >= 3 && data.name.size() <= 80 &&
+        data.slug is string && data.slug.size() >= 3 && data.slug.size() <= 90 && data.slug.matches('^[a-z0-9\\-]+$') &&
+        data.description is string && data.description.size() >= 15 && data.description.size() <= 5000 &&
+        data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 500 &&
+        data.imageFilename is string && data.imageFilename.size() <= 200 &&
+        data.fileUrl is string && data.fileUrl.size() >= 1 && data.fileUrl.size() <= 500 &&
+        data.fileStorageName is string && data.fileStorageName.size() >= 1 && data.fileStorageName.size() <= 200 &&
+        data.fileOriginalName is string && data.fileOriginalName.size() >= 1 && data.fileOriginalName.size() <= 200 &&
+        data.fileSize is int && data.fileSize > 0 && data.fileSize <= 52428800 &&
+        data.fileFormat in ['.mcaddon', '.mcpack', '.mcworld', '.zip'] &&
+        data.categoryId is string && isValidId(data.categoryId) &&
+        data.categoryName is string && data.categoryName.size() >= 2 && data.categoryName.size() <= 40 &&
+        data.categorySlug is string && data.categorySlug.size() >= 2 && data.categorySlug.size() <= 60 && data.categorySlug.matches('^[a-z0-9\\-]+$') &&
+        isValidBedrockVersionStr(data.mcVersion) &&
+        (!('compatibleVersions' in data.keys()) || (
+          data.compatibleVersions is list &&
+          data.compatibleVersions.size() >= 1 &&
+          data.compatibleVersions.size() <= 40 &&
+          isValidBedrockVersionStr(data.compatibleVersions[0])
+        )) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 60 &&
+        data.creatorId is string && isValidId(data.creatorId) &&
+        data.creatorUsername is string && data.creatorUsername.size() >= 3 && data.creatorUsername.size() <= 32 && data.creatorUsername.matches('^[a-z0-9_]+$') &&
+        data.status in ['pending', 'approved', 'rejected'] &&
+        data.isFeatured is bool &&
+        data.downloadCount is int && data.downloadCount >= 0 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // Public creator profiles (PII-free)
+    match /creators/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if true;
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isOwner(userId) &&
+        isValidCreatorProfile(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidCreatorProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          isAdmin() ||
+          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'username']))
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // Private user accounts (PII isolated)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserAccount(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().isBanned == false &&
+        incoming().createdAt == request.time &&
+        (
+          (incoming().role == 'user') ||
+          (incoming().role == 'admin' && isBootstrapAdminEmail())
+        );
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserAccount(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            existing().isBanned == false &&
+            incoming().role == existing().role &&
+            incoming().isBanned == existing().isBanned &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'avatarUrl', 'username'])
+          )
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // Trusted Admin Grants
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidAdminGrant(incoming()) &&
+        incoming().uid == userId &&
+        incoming().grantedAt == request.time &&
+        (isAdmin() || (isOwner(userId) && isBootstrapAdminEmail()));
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // Bedrock Categories
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+      allow create: if isValidId(categoryId) &&
+        isValidCategory(incoming()) &&
+        incoming().createdAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            isVerifiedUser() &&
+            categoryId in ['addons', 'shaders-textures', 'worlds-maps', 'mobs-bosses', 'tech-redstone', 'ui-utilities'] &&
+            incoming().slug == categoryId
+          )
+        );
+      allow update: if isAdmin() &&
+        isValidId(categoryId) &&
+        isValidCategory(incoming()) &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(categoryId);
+    }
+
+    // Minecraft Bedrock Supported Versions
+    match /versions/{versionId} {
+      allow get: if isValidId(versionId);
+      allow list: if true;
+      allow create: if isValidId(versionId) &&
+        isValidMinecraftVersion(incoming()) &&
+        incoming().createdAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            isVerifiedUser() &&
+            versionId in [
+              '1_26_0', '1_26_1', '1_26_2', '1_26_3', '1_26_4', '1_26_5',
+              '1_26_10', '1_26_20', '1_26_30', '1_26_40', '1_26_50', '1_26_60'
+            ] &&
+            incoming().isActive == true
+          )
+        );
+      allow update: if isAdmin() &&
+        isValidId(versionId) &&
+        isValidMinecraftVersion(incoming()) &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(versionId);
+    }
+
+    // Bedrock Mods
+    match /mods/{modId} {
+      allow get: if isValidId(modId) && (
+        existing().status == 'approved' ||
+        isAdmin() ||
+        (isSignedIn() && existing().creatorId == request.auth.uid)
+      );
+      allow list: if resource.data.status == 'approved' ||
+        isAdmin() ||
+        (isSignedIn() && resource.data.creatorId == request.auth.uid);
+
+      allow create: if isVerifiedUser() &&
+        isValidId(modId) &&
+        isValidMod(incoming()) &&
+        'compatibleVersions' in incoming().keys() &&
+        incoming().creatorId == request.auth.uid &&
+        incoming().downloadCount == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/categories/$(incoming().categoryId)) &&
+        isNotBanned() &&
+        (
+          isAdmin() ||
+          (incoming().status == 'approved' && incoming().isFeatured == false)
+        );
+
+      allow update: if isValidId(modId) &&
+        isValidMod(incoming()) &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          // Action 1: Admin moderation & editing
+          (
+            isAdmin() &&
+            incoming().updatedAt == request.time
+          ) ||
+          // Action 2: Owner editing own mod details/files/versions
+          (
+            isVerifiedUser() &&
+            existing().creatorId == request.auth.uid &&
+            isNotBanned() &&
+            incoming().status == existing().status &&
+            incoming().isFeatured == existing().isFeatured &&
+            incoming().downloadCount == existing().downloadCount &&
+            incoming().updatedAt == request.time &&
+            exists(/databases/$(database)/documents/categories/$(incoming().categoryId)) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'slug', 'description', 'imageUrl', 'imageFilename',
+              'fileUrl', 'fileStorageName', 'fileOriginalName', 'fileSize', 'fileFormat',
+              'categoryId', 'categoryName', 'categorySlug', 'mcVersion', 'compatibleVersions',
+              'creatorName', 'updatedAt'
+            ])
+          ) ||
+          // Action 3: Atomic +1 download counter increment on approved mods
+          (
+            existing().status == 'approved' &&
+            incoming().downloadCount == existing().downloadCount + 1 &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['downloadCount'])
+          )
+        );
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(modId) &&
+        (isAdmin() || existing().creatorId == request.auth.uid);
+    }
+  }
+}
